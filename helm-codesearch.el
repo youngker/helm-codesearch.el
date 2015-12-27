@@ -137,28 +137,32 @@
    (requires-pattern :initform 4)))
 
 ;;;###autoload
-(defun helm-codesearch-find-pattern ()
-  "Find pattern."
-  (interactive)
+(defun helm-codesearch-find-pattern (query)
+  "Find pattern with QUERY."
+  (interactive
+   (list (read-string "Find pattern: " (current-word))))
   (when (helm-codesearch-search-csearchindex)
     (helm :sources (helm-make-source
                        "Codesearch: Find Pattern at"
                        'helm-codesearch-source-pattern
                      :cindex-dir (getenv "CSEARCHINDEX"))
           :buffer helm-codesearch-buffer
+          :input query
           :keymap helm-grep-map
           :truncate-lines t)))
 
 ;;;###autoload
-(defun helm-codesearch-find-file ()
-  "Find files."
-  (interactive)
+(defun helm-codesearch-find-file (query)
+  "Find files with QUERY."
+  (interactive
+   (list (read-string "Find file: " (current-word))))
   (when (helm-codesearch-search-csearchindex)
     (helm :sources (helm-make-source
                        "Codesearch: Find File at"
                        'helm-codesearch-source-file
                      :cindex-dir (getenv "CSEARCHINDEX"))
           :buffer helm-codesearch-buffer
+          :input query
           :keymap helm-grep-map
           :truncate-lines t)))
 
