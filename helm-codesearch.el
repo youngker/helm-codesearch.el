@@ -5,7 +5,7 @@
 ;; Author: Youngjoo Lee <youngker@gmail.com>
 ;; Version: 0.1.0
 ;; Keywords: tools
-;; Package-Requires: ((helm "1.7.7"))
+;; Package-Requires: ((s "1.10.0") (dash "2.12.0") (helm "1.7.7") (cl-lib "0.5"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -27,21 +27,44 @@
 ;; See documentation on https://github.com/youngker/helm-codesearch.el
 
 ;;; Code:
-
+(require 's)
+(require 'dash)
 (require 'helm)
 (require 'helm-grep)
+(require 'helm-files)
+(require 'cl-lib)
 
 (defgroup helm-codesearch nil
   "Helm interface for codesearch."
   :group 'helm)
+
+(defface helm-codesearch-file-face
+  '((t :inherit font-lock-function-name-face))
+  "Face for file."
+  :group 'helm-codesearch)
+
+(defface helm-codesearch-lineno-face
+  '((t :inherit font-lock-constant-face))
+  "Face for lineno."
+  :group 'helm-codesearch)
+
+(defface helm-codesearch-source-face
+  '((t :inherit font-lock-doc-face))
+  "Face for source."
+  :group 'helm-codesearch)
 
 (defcustom helm-codesearch-csearchindex
   ".csearchindex"
   "Index file for each projects."
   :group 'helm-codesearch)
 
+(defcustom helm-codesearch-abbreviate-filename 80
+  "Abbreviate filename length."
+  :group 'helm-codesearch)
+
 (defvar helm-codesearch-buffer "*helm codesearch*")
 (defvar helm-codesearch-indexing-buffer "*helm codesearch indexing*")
+(defvar helm-codesearch-file nil)
 
 (defun helm-codesearch-search-csearchindex ()
   "Search for Project index file."
@@ -58,10 +81,61 @@
         (when (string-match "^\\(/\\|[A-Za-z]:[\\/]\\)$" dir)
           (error "Can't find a csearchindex"))))))
 
+(defun helm-codesearch-abbreviate-file (file)
+  "FILE."
+  (with-temp-buffer
+    (insert file)
+    (let* ((start (- (point) (length file)))
+           (end (point))
+           (amount (if (numberp helm-codesearch-abbreviate-filename)
+                       (- (- end start) helm-codesearch-abbreviate-filename)
+                     999))
+           (advance-word (lambda ()
+                           "Return the length of the text made invisible."
+                           (let ((wend (min end (progn (forward-word 1) (point))))
+                                 (wbeg (max start (progn (backward-word 1) (point)))))
+                             (goto-char wend)
+                             (if (<= (- wend wbeg) 1)
+                                 0
+                               (put-text-property (1+ wbeg) wend 'invisible t)
+                               (1- (- wend wbeg)))))))
+      (goto-char start)
+      (while (and (> amount 0) (> end (point)))
+        (cl-decf amount (funcall advance-word)))
+      (goto-char end))
+    (buffer-substring (point-min) (point-max))))
+
+(defconst helm-codesearch-pattern-regexp
+  "^\\([[:lower:][:upper:]]?:?.*?\\):\\([0-9]+\\):\\(.*\\)")
+
+(defun helm-codesearch-make-pattern-format (candidate)
+  "Make pattern format from CANDIDATE."
+  (-when-let* (((_ file lineno source)
+                (s-match helm-codesearch-pattern-regexp candidate))
+               (file (propertize file 'face 'helm-codesearch-file-face))
+               (lineno (propertize lineno 'face 'helm-codesearch-lineno-face))
+               (source (propertize source 'face 'helm-codesearch-source-face))
+               (display-line (format "%08s: %s" lineno source))
+               (real-file (format "%s:%s:" file 1)) )
+    (if (string= file helm-codesearch-file)
+        (list (cons display-line candidate))
+      (progn
+        (setq helm-codesearch-file file)
+        (list (cons (helm-codesearch-abbreviate-file file) real-file)
+              (cons display-line candidate))))))
+
 (defun helm-codesearch-find-pattern-transformer (candidates source)
-  "Transformer is run on the CANDIDATES and not use SOURCE."
-  (cl-loop for c in (helm-fast-remove-dups candidates :test 'equal)
-           collect (helm-grep--filter-candidate-1 c)))
+  "Transformer is run on the CANDIDATES and not use the SOURCE."
+  (-mapcat 'helm-codesearch-make-pattern-format candidates))
+
+(defun helm-codesearch-make-file-format (candidate)
+  "Make file format from CANDIDATE."
+  (-when-let* ((file (propertize candidate 'face 'helm-codesearch-file-face)))
+    (list (cons (helm-codesearch-abbreviate-file file) candidate))))
+
+(defun helm-codesearch-find-file-transformer (candidates source)
+  "Transformer is run on the CANDIDATES and not use the SOURCE."
+  (-mapcat 'helm-codesearch-make-file-format candidates))
 
 (defun helm-codesearch-find-pattern-process ()
   "Execute the csearch for a pattern."
@@ -75,7 +149,7 @@
           process event (helm-default-directory)))))))
 
 (defun helm-codesearch-find-file-process ()
-  "Execute the csearch for a files."
+  "Execute the csearch for a file."
   (let ((proc (apply 'start-process "codesearch" nil
                      "csearch" (list "-l" "-f" helm-pattern "$"))))
     (prog1 proc
@@ -92,21 +166,22 @@
                      "cindex" (list dir))))
     (with-current-buffer helm-codesearch-indexing-buffer
       (pop-to-buffer helm-codesearch-indexing-buffer)
+      (erase-buffer)
+      (setq buffer-read-only t)
       (goto-char (point-max)))))
 
 (defclass helm-codesearch-source-pattern (helm-source-async)
   ((header-name
     :initform
     (lambda (name)
-      (concat name " [" (helm-attr 'cindex-dir) "]")))
-   (cindex-dir :initarg :cindex-dir
-               :initform nil
-               :custom string
-               :documentation " Index file.")
+      (concat name " [" (helm-attr 'csearchindex) "]")))
+   (csearchindex :initarg :csearchindex
+                 :initform nil
+                 :custom string
+                 :documentation " Index file.")
    (candidates-process :initform 'helm-codesearch-find-pattern-process)
    (filtered-candidate-transformer
     :initform 'helm-codesearch-find-pattern-transformer)
-   (candidate-number-limit :initform 100)
    (action :initform (helm-make-actions
                       "Find File" 'helm-grep-action
                       "Find file other frame" 'helm-grep-other-frame
@@ -116,24 +191,28 @@
                       "Save results in grep buffer" 'helm-grep-save-results
                       "Find file other window" 'helm-grep-other-window))
    (persistent-action :initform 'helm-grep-persistent-action)
+   (nohighlight :initform t)
    (history :initform 'helm-grep-history)
    (help-message :initform 'helm-grep-help-message)
+   (keymap :initform helm-grep-map)
+   (candidate-number-limit :initform 200)
    (requires-pattern :initform 4)))
 
 (defclass helm-codesearch-source-file (helm-source-async)
   ((header-name
     :initform
     (lambda (name)
-      (concat name " [" (helm-attr 'cindex-dir) "]")))
-   (cindex-dir :initarg :cindex-dir
-               :initform nil
-               :custom string
-               :documentation " Index file.")
+      (concat name " [" (helm-attr 'csearchindex) "]")))
+   (csearchindex :initarg :csearchindex
+                 :initform nil
+                 :custom string
+                 :documentation " Index file.")
    (candidates-process :initform 'helm-codesearch-find-file-process)
    (action :initform 'helm-type-file-actions)
    (filtered-candidate-transformer
-    :initform 'helm-file-name-history-transformer)
-   (candidate-number-limit :initform 100)
+    :initform 'helm-codesearch-find-file-transformer)
+   (keymap :initform helm-generic-files-map)
+   (candidate-number-limit :initform 200)
    (requires-pattern :initform 4)))
 
 ;;;###autoload
@@ -143,9 +222,9 @@
    (list (read-string "Find pattern: " (current-word))))
   (when (helm-codesearch-search-csearchindex)
     (helm :sources (helm-make-source
-                       "Codesearch: Find Pattern at"
+                       "Codesearch: Find pattern"
                        'helm-codesearch-source-pattern
-                     :cindex-dir (getenv "CSEARCHINDEX"))
+                     :csearchindex (getenv "CSEARCHINDEX"))
           :buffer helm-codesearch-buffer
           :input query
           :keymap helm-grep-map
@@ -153,17 +232,17 @@
 
 ;;;###autoload
 (defun helm-codesearch-find-file (query)
-  "Find files with QUERY."
+  "Find file with QUERY."
   (interactive
    (list (read-string "Find file: " (current-word))))
   (when (helm-codesearch-search-csearchindex)
     (helm :sources (helm-make-source
-                       "Codesearch: Find File at"
+                       "Codesearch: Find file"
                        'helm-codesearch-source-file
-                     :cindex-dir (getenv "CSEARCHINDEX"))
+                     :csearchindex (getenv "CSEARCHINDEX"))
           :buffer helm-codesearch-buffer
           :input query
-          :keymap helm-grep-map
+          :keymap helm-generic-files-map
           :truncate-lines t)))
 
 ;;;###autoload
