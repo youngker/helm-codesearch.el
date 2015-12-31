@@ -5,7 +5,7 @@ helm interface for codesearch
 ## ScreenShot
 
 - **find pattern**
-<img align="center" src="https://raw.github.com/youngker/helm-codesearchh.el/master/helm-codesearch-pattern.png">
+<img align="center" src="https://raw.github.com/youngker/helm-codesearch.el/master/helm-codesearch-pattern.png">
 
 - **find file**
 <img align="center" src="https://raw.github.com/youngker/helm-codesearch.el/master/helm-codesearch-file.png">
