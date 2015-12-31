@@ -2,12 +2,30 @@
 
 helm interface for codesearch
 
+## ScreenShot
+
+- **find pattern**
+<img align="center" src="https://raw.github.com/youngker/helm-codesearchh.el/master/helm-codesearch-pattern.png">
+
+- **find file**
+<img align="center" src="https://raw.github.com/youngker/helm-codesearch.el/master/helm-codesearch-file.png">
+
 ## Installation
 
 Requirements
 
 - **Google codesearch**
+
   [https://github.com/google/codesearch](https://github.com/google/codesearch)
+
+
+You can add these lines to your init file.
+
+```elisp
+(define-key global-map (kbd "C-c s f") 'helm-codesearch-find-file)
+(define-key global-map (kbd "C-c s t") 'helm-codesearch-find-pattern)
+(define-key global-map (kbd "C-c s I") 'helm-codesearch-create-csearchindex)
+```
 
 ## License
 
