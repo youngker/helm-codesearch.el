@@ -1,4 +1,4 @@
-# helm-codesearch.el
+# helm-codesearch.el [![MELPA](http://melpa.org/packages/helm-codesearch-badge.svg)](http://melpa.org/#/helm-codesearch)
 
 helm interface for codesearch
 
@@ -12,6 +12,10 @@ helm interface for codesearch
 
 ## Installation
 
+It's available on [Melpa](https://melpa.org/):
+
+    M-x package-install helm-codesearch
+
 Requirements
 
 - **Google codesearch**
@@ -22,9 +26,9 @@ Requirements
 You can add these lines to your init file.
 
 ```elisp
-(define-key global-map (kbd "C-c s f") 'helm-codesearch-find-file)
-(define-key global-map (kbd "C-c s t") 'helm-codesearch-find-pattern)
-(define-key global-map (kbd "C-c s I") 'helm-codesearch-create-csearchindex)
+(define-key global-map (kbd "C-c h f") 'helm-codesearch-find-file)
+(define-key global-map (kbd "C-c h t") 'helm-codesearch-find-pattern)
+(define-key global-map (kbd "C-c h I") 'helm-codesearch-create-csearchindex)
 ```
 
 ## License
