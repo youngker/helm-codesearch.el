@@ -116,7 +116,7 @@
                (lineno (propertize lineno 'face 'helm-codesearch-lineno-face))
                (source (propertize source 'face 'helm-codesearch-source-face))
                (display-line (format "%08s: %s" lineno source))
-               (real-file (format "%s:%s:" file 1)) )
+               (real-file (format "%s:%s:" file 1)))
     (if (string= file helm-codesearch-file)
         (list (cons display-line candidate))
       (progn
@@ -141,6 +141,7 @@
   "Execute the csearch for a pattern."
   (let ((proc (apply 'start-process "codesearch" nil
                      "csearch" (list "-n" helm-pattern))))
+    (setq helm-codesearch-file nil)
     (prog1 proc
       (set-process-sentinel
        proc
@@ -165,8 +166,9 @@
                      helm-codesearch-indexing-buffer
                      "cindex" (list dir))))
     (with-current-buffer helm-codesearch-indexing-buffer
+      (let ((buffer-read-only nil))
+        (erase-buffer))
       (pop-to-buffer helm-codesearch-indexing-buffer)
-      (erase-buffer)
       (setq buffer-read-only t)
       (goto-char (point-max)))))
 
