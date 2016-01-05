@@ -1,9 +1,9 @@
 ;;; helm-codesearch.el --- helm interface for codesearch
 
-;; Copyright (C) 2015 Youngjoo Lee
+;; Copyright (C) 2016 Youngjoo Lee
 
 ;; Author: Youngjoo Lee <youngker@gmail.com>
-;; Version: 0.1.0
+;; Version: 0.2.0
 ;; Keywords: tools
 ;; Package-Requires: ((s "1.10.0") (dash "2.12.0") (helm "1.7.7") (cl-lib "0.5"))
 
@@ -137,28 +137,37 @@
   "Transformer is run on the CANDIDATES and not use the SOURCE."
   (-mapcat 'helm-codesearch-make-file-format candidates))
 
+(defun helm-codesearch-pattern-command ()
+  "Find pattern command."
+  (s-join " " (list "csearch" "-n" helm-pattern)))
+
+(defun helm-codesearch-file-command ()
+  "Find file command."
+  (s-join " " (list "csearch" "-l" "-f" helm-pattern "$")))
+
+(defun helm-codesearch-set-process-sentinel (proc)
+  "Set process sentinel to PROC."
+  (prog1 proc
+    (set-process-sentinel
+     proc
+     (lambda (process event)
+       (helm-process-deferred-sentinel-hook
+        process event (helm-default-directory))))))
+
 (defun helm-codesearch-find-pattern-process ()
   "Execute the csearch for a pattern."
-  (let ((proc (apply 'start-process "codesearch" nil
-                     "csearch" (list "-n" helm-pattern))))
+  (let ((proc (start-process-shell-command
+               "codesearch" nil
+               (helm-codesearch-pattern-command))))
     (setq helm-codesearch-file nil)
-    (prog1 proc
-      (set-process-sentinel
-       proc
-       (lambda (process event)
-         (helm-process-deferred-sentinel-hook
-          process event (helm-default-directory)))))))
+    (helm-codesearch-set-process-sentinel proc)))
 
 (defun helm-codesearch-find-file-process ()
   "Execute the csearch for a file."
-  (let ((proc (apply 'start-process "codesearch" nil
-                     "csearch" (list "-l" "-f" helm-pattern "$"))))
-    (prog1 proc
-      (set-process-sentinel
-       proc
-       (lambda (process event)
-         (helm-process-deferred-sentinel-hook
-          process event (helm-default-directory)))))))
+  (let ((proc (start-process-shell-command
+               "codesearch" nil
+               (helm-codesearch-file-command))))
+    (helm-codesearch-set-process-sentinel proc)))
 
 (defun helm-codesearch-create-csearchindex-process (dir)
   "Execute the cindex from a DIR."
@@ -188,7 +197,7 @@
                       "Find File" 'helm-grep-action
                       "Find file other frame" 'helm-grep-other-frame
                       (lambda () (and (locate-library "elscreen")
-                                  "Find file in Elscreen"))
+                                 "Find file in Elscreen"))
                       'helm-grep-jump-elscreen
                       "Save results in grep buffer" 'helm-grep-save-results
                       "Find file other window" 'helm-grep-other-window))
