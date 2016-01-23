@@ -115,7 +115,7 @@
                (file (propertize file 'face 'helm-codesearch-file-face))
                (lineno (propertize lineno 'face 'helm-codesearch-lineno-face))
                (source (propertize source 'face 'helm-codesearch-source-face))
-               (display-line (format "%08s: %s" lineno source))
+               (display-line (format "%08s %s" lineno source))
                (real-file (format "%s:%s:" file 1)))
     (if (string= file helm-codesearch-file)
         (list (cons display-line candidate))
@@ -227,34 +227,36 @@
    (requires-pattern :initform 4)))
 
 ;;;###autoload
-(defun helm-codesearch-find-pattern (query)
-  "Find pattern with QUERY."
-  (interactive
-   (list (read-string "Find pattern: " (current-word))))
+(defun helm-codesearch-find-pattern ()
+  "Find pattern."
+  (interactive)
   (when (helm-codesearch-search-csearchindex)
-    (helm :sources (helm-make-source
-                       "Codesearch: Find pattern"
-                       'helm-codesearch-source-pattern
-                     :csearchindex (getenv "CSEARCHINDEX"))
-          :buffer helm-codesearch-buffer
-          :input query
-          :keymap helm-grep-map
-          :truncate-lines t)))
+    (let ((symbol (thing-at-point 'symbol)))
+      (helm :sources (helm-make-source
+                         "Codesearch: Find pattern"
+                         'helm-codesearch-source-pattern
+                       :csearchindex (getenv "CSEARCHINDEX"))
+            :buffer helm-codesearch-buffer
+            :input symbol
+            :keymap helm-grep-map
+            :prompt "Find pattern: "
+            :truncate-lines t))))
 
 ;;;###autoload
-(defun helm-codesearch-find-file (query)
-  "Find file with QUERY."
-  (interactive
-   (list (read-string "Find file: " (current-word))))
+(defun helm-codesearch-find-file ()
+  "Find file."
+  (interactive)
   (when (helm-codesearch-search-csearchindex)
-    (helm :sources (helm-make-source
-                       "Codesearch: Find file"
-                       'helm-codesearch-source-file
-                     :csearchindex (getenv "CSEARCHINDEX"))
-          :buffer helm-codesearch-buffer
-          :input query
-          :keymap helm-generic-files-map
-          :truncate-lines t)))
+    (let ((symbol (thing-at-point 'symbol)))
+      (helm :sources (helm-make-source
+                         "Codesearch: Find file"
+                         'helm-codesearch-source-file
+                       :csearchindex (getenv "CSEARCHINDEX"))
+            :buffer helm-codesearch-buffer
+            :input symbol
+            :keymap helm-generic-files-map
+            :prompt "Find file: "
+            :truncate-lines t))))
 
 ;;;###autoload
 (defun helm-codesearch-create-csearchindex (dir)
