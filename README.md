@@ -5,10 +5,12 @@ helm interface for codesearch
 ## ScreenShot
 
 - **find pattern**
+
 usage : `-i -f "(?i)filename" "search.*pattern"`
 <img align="center" src="https://raw.github.com/youngker/helm-codesearch.el/master/helm-codesearch-pattern.png">
 
 - **find file**
+
 case-sensitive : `"(?i)filename"`
 <img align="center" src="https://raw.github.com/youngker/helm-codesearch.el/master/helm-codesearch-file.png">
 
