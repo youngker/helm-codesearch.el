@@ -3,7 +3,7 @@
 ;; Copyright (C) 2016 Youngjoo Lee
 
 ;; Author: Youngjoo Lee <youngker@gmail.com>
-;; Version: 0.2.0
+;; Version: 0.3.0
 ;; Keywords: tools
 ;; Package-Requires: ((s "1.10.0") (dash "2.12.0") (helm "1.7.7") (cl-lib "0.5"))
 
@@ -65,6 +65,7 @@
 (defvar helm-codesearch-buffer "*helm codesearch*")
 (defvar helm-codesearch-indexing-buffer "*helm codesearch indexing*")
 (defvar helm-codesearch-file nil)
+(defvar helm-codesearch-process nil)
 
 (defun helm-codesearch-search-csearchindex ()
   "Search for Project index file."
@@ -116,13 +117,13 @@
                (lineno (propertize lineno 'face 'helm-codesearch-lineno-face))
                (source (propertize source 'face 'helm-codesearch-source-face))
                (display-line (format "%08s %s" lineno source))
-               (real-file (format "%s:%s:" file 1)))
+               (abbrev-file (format "\n%s" (helm-codesearch-abbreviate-file file)))
+               (fake-file (propertize abbrev-file 'helm-candidate-separator t)))
     (if (string= file helm-codesearch-file)
         (list (cons display-line candidate))
       (progn
         (setq helm-codesearch-file file)
-        (list (cons (helm-codesearch-abbreviate-file file) real-file)
-              (cons display-line candidate))))))
+        (list (cons (format "%s\n%s" fake-file display-line) candidate))))))
 
 (defun helm-codesearch-find-pattern-transformer (candidates source)
   "Transformer is run on the CANDIDATES and not use the SOURCE."
@@ -130,8 +131,13 @@
 
 (defun helm-codesearch-make-file-format (candidate)
   "Make file format from CANDIDATE."
-  (-when-let* ((file (propertize candidate 'face 'helm-codesearch-file-face)))
-    (list (cons (helm-codesearch-abbreviate-file file) candidate))))
+  (-when-let* ((file (propertize candidate 'face 'helm-codesearch-file-face))
+               (lineno (propertize "1" 'face 'helm-codesearch-lineno-face))
+               (source (propertize "..." 'face 'helm-codesearch-source-face))
+               (display-line (format "%08s %s" lineno source))
+               (abbrev-file (format "\n%s" (helm-codesearch-abbreviate-file file)))
+               (fake-file (propertize abbrev-file 'helm-candidate-separator t)))
+    (list (cons (format "%s\n%s" fake-file display-line) candidate))))
 
 (defun helm-codesearch-find-file-transformer (candidates source)
   "Transformer is run on the CANDIDATES and not use the SOURCE."
@@ -144,6 +150,15 @@
 (defun helm-codesearch-file-command ()
   "Find file command."
   (s-join " " (list "csearch" "-l" "-f" helm-pattern "$")))
+
+(defun helm-codesearch-show-candidate-number (&optional name)
+  "Used to display candidate number in mode-line.
+You can specify NAME of candidates e.g \"Buffers\" otherwise
+it is \"Candidate\(s\)\" by default."
+  (let ((source (cdr (assoc helm-codesearch-process helm-async-processes))))
+    (propertize
+     (format "[%s Candidate(s)]" (or (cdr (assoc 'item-count source)) 0))
+     'face 'helm-candidate-number)))
 
 (defun helm-codesearch-set-process-sentinel (proc)
   "Set process sentinel to PROC."
@@ -160,6 +175,7 @@
                "codesearch" nil
                (helm-codesearch-pattern-command))))
     (setq helm-codesearch-file nil)
+    (setq helm-codesearch-process proc)
     (helm-codesearch-set-process-sentinel proc)))
 
 (defun helm-codesearch-find-file-process ()
@@ -167,6 +183,7 @@
   (let ((proc (start-process-shell-command
                "codesearch" nil
                (helm-codesearch-file-command))))
+    (setq helm-codesearch-process proc)
     (helm-codesearch-set-process-sentinel proc)))
 
 (defun helm-codesearch-create-csearchindex-process (dir)
@@ -181,6 +198,16 @@
       (setq buffer-read-only t)
       (goto-char (point-max)))))
 
+(defun helm-codesearch-init ()
+  "Initialize."
+  (advice-add 'helm-show-candidate-number :override
+              #'helm-codesearch-show-candidate-number))
+
+(defun helm-codesearch-cleanup ()
+  "Cleanup Function."
+  (advice-remove 'helm-show-candidate-number
+                 #'helm-codesearch-show-candidate-number))
+
 (defclass helm-codesearch-source-pattern (helm-source-async)
   ((header-name
     :initform
@@ -190,6 +217,8 @@
                  :initform nil
                  :custom string
                  :documentation " Index file.")
+   (init :initform 'helm-codesearch-init)
+   (cleanup :initform 'helm-codesearch-cleanup)
    (candidates-process :initform 'helm-codesearch-find-pattern-process)
    (filtered-candidate-transformer
     :initform 'helm-codesearch-find-pattern-transformer)
@@ -197,17 +226,15 @@
                       "Find File" 'helm-grep-action
                       "Find file other frame" 'helm-grep-other-frame
                       (lambda () (and (locate-library "elscreen")
-                                 "Find file in Elscreen"))
+                                      "Find file in Elscreen"))
                       'helm-grep-jump-elscreen
                       "Save results in grep buffer" 'helm-grep-save-results
                       "Find file other window" 'helm-grep-other-window))
    (persistent-action :initform 'helm-grep-persistent-action)
-   (nohighlight :initform t)
-   (history :initform 'helm-grep-history)
    (help-message :initform 'helm-grep-help-message)
    (keymap :initform helm-grep-map)
-   (candidate-number-limit :initform 200)
-   (requires-pattern :initform 4)))
+   (candidate-number-limit :initform 99999)
+   (requires-pattern :initform 3)))
 
 (defclass helm-codesearch-source-file (helm-source-async)
   ((header-name
@@ -218,13 +245,15 @@
                  :initform nil
                  :custom string
                  :documentation " Index file.")
+   (init :initform 'helm-codesearch-init)
+   (cleanup :initform 'helm-codesearch-cleanup)
    (candidates-process :initform 'helm-codesearch-find-file-process)
    (action :initform 'helm-type-file-actions)
    (filtered-candidate-transformer
     :initform 'helm-codesearch-find-file-transformer)
    (keymap :initform helm-generic-files-map)
-   (candidate-number-limit :initform 200)
-   (requires-pattern :initform 4)))
+   (candidate-number-limit :initform 99999)
+   (requires-pattern :initform 3)))
 
 ;;;###autoload
 (defun helm-codesearch-find-pattern ()
