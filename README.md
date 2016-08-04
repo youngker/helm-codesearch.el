@@ -35,6 +35,12 @@ You can add these lines to your init file.
 (define-key global-map (kbd "C-c h I") 'helm-codesearch-create-csearchindex)
 ```
 
+If you want to search for multiple projects, you need to set the csearchindex.
+
+```elisp
+(setq helm-codesearch-multi-csearchindex "~/.csearchindex")
+```
+
 ## License
 
 Copyright (C) 2015 Youngjoo Lee
