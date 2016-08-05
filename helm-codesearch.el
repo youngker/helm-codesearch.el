@@ -72,16 +72,11 @@
 
 (defun helm-codesearch-search-single-csearchindex ()
   "Search for single project index file."
-  (let* ((dir (expand-file-name default-directory)))
-    (catch 'done
-      (while dir
-        (when (file-exists-p (concat dir helm-codesearch-csearchindex))
-          (throw 'done (concat dir helm-codesearch-csearchindex)))
-        (setq dir (file-name-as-directory
-                   (file-name-directory
-                    (directory-file-name dir))))
-        (when (string-match "^\\(/\\|[A-Za-z]:[\\/]\\)$" dir)
-          (error "Can't find a csearchindex"))))))
+  (let* ((start-dir (expand-file-name default-directory))
+         (index-dir (locate-dominating-file start-dir helm-codesearch-csearchindex)))
+    (if index-dir
+       (concat index-dir helm-codesearch-csearchindex)
+      (error "Can't find csearchindex"))))
 
 (defun helm-codesearch-search-csearchindex ()
   "Search for project index file."
