@@ -56,14 +56,17 @@
 
 (defcustom helm-codesearch-csearchindex ".csearchindex"
   "Index file for each projects."
+  :type 'string
   :group 'helm-codesearch)
 
 (defcustom helm-codesearch-multi-csearchindex nil
   "Index file for multiple projects."
+  :type 'boolean
   :group 'helm-codesearch)
 
 (defcustom helm-codesearch-abbreviate-filename 80
   "Abbreviate filename length."
+  :type 'number
   :group 'helm-codesearch)
 
 (defcustom helm-codesearch-action
