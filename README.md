@@ -6,12 +6,12 @@ helm interface for codesearch
 
 - **find pattern**
 
-usage : `-i -f "(?i)filename" "search.*pattern"`
+usage : `-i -f (?i)filename search.*pattern`
 <img align="center" src="https://raw.github.com/youngker/helm-codesearch.el/master/helm-codesearch-pattern.png">
 
 - **find file**
 
-case-sensitive : `"(?i)filename"`
+case-sensitive : `(?i)filename`
 <img align="center" src="https://raw.github.com/youngker/helm-codesearch.el/master/helm-codesearch-file.png">
 
 ## Installation
@@ -43,7 +43,7 @@ If you want to search for multiple projects, you need to set the csearchindex.
 
 ## License
 
-Copyright (C) 2015 Youngjoo Lee
+Copyright (C) 2016 Youngjoo Lee
 
 Author: Youngjoo Lee <youngker@gmail.com>
 
