@@ -204,7 +204,7 @@
      (lambda (process event)
        (helm-process-deferred-sentinel-hook
         process event (helm-default-directory))
-       (unless (string= event "finished\n")
+       (unless (member event '("finished\n" "killed\n"))
          (with-helm-window
            (forward-line 1)
            (insert " No match found.")))))))
