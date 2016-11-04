@@ -72,7 +72,7 @@
 (defcustom helm-codesearch-action
   '(("Find File" . helm-grep-action)
     ("Find file other frame" . helm-grep-other-frame)
-    ("Save results in grep buffer" . helm-grep-save-results)
+    ("Save results in grep buffer" . helm-codesearch-run-save-result)
     ("Find file other window" . helm-grep-other-window))
   "Actions for helm-codesearch."
   :group 'helm-codesearch
@@ -82,6 +82,13 @@
 (defvar helm-codesearch-indexing-buffer "*helm codesearch indexing*")
 (defvar helm-codesearch-file nil)
 (defvar helm-codesearch-process nil)
+
+(defvar helm-codesearch-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c o") 'helm-grep-run-other-window-action)
+    (define-key map (kbd "C-c C-o") 'helm-grep-run-other-frame-action)
+    (define-key map (kbd "C-x C-s") 'helm-codesearch-run-save-buffer)
+    map))
 
 (defvar helm-codesearch-source-pattern
   (helm-build-async-source "Codesearch: Find pattern"
@@ -93,7 +100,6 @@
     :action 'helm-codesearch-action
     :persistent-action 'helm-grep-persistent-action
     :help-message 'helm-grep-help-message
-    :keymap helm-grep-map
     :candidate-number-limit 99999
     :requires-pattern 3))
 
@@ -105,7 +111,6 @@
     :candidates-process #'helm-codesearch-find-file-process
     :filtered-candidate-transformer #'helm-codesearch-find-file-transformer
     :action 'helm-type-file-actions
-    :keymap helm-generic-files-map
     :candidate-number-limit 99999
     :requires-pattern 3))
 
@@ -116,7 +121,8 @@
 (defun helm-codesearch-search-single-csearchindex ()
   "Search for single project index file."
   (let* ((start-dir (expand-file-name default-directory))
-         (index-dir (locate-dominating-file start-dir helm-codesearch-csearchindex)))
+         (index-dir (locate-dominating-file start-dir
+                                            helm-codesearch-csearchindex)))
     (if index-dir
         (concat index-dir helm-codesearch-csearchindex)
       (error "Can't find csearchindex"))))
@@ -154,12 +160,117 @@
 (defconst helm-codesearch-pattern-regexp
   "^\\([[:lower:][:upper:]]?:?.*?\\):\\([0-9]+\\):\\(.*\\)")
 
+(defun helm-codesearch-show-source ()
+  "Display source."
+  (save-excursion
+    (beginning-of-line)
+    (-when-let* ((realvalue (get-text-property (point) 'helm-realvalue))
+                 ((_ file lineno source)
+                  (s-match helm-codesearch-pattern-regexp realvalue))
+                 (buffer (find-file-noselect file))
+                 (window (display-buffer buffer)))
+      (set-buffer buffer)
+      (save-restriction
+        (widen)
+        (goto-char (point-min))
+        (forward-line (1- (string-to-number lineno))))
+      (set-window-point window (point))
+      window)))
+
+(defun helm-codesearch-jump-to-source ()
+  "Jump point to the other window."
+  (interactive)
+  (save-excursion
+    (beginning-of-line)
+    (-when-let (window (helm-codesearch-show-source))
+      (select-window window)
+      (ring-insert find-tag-marker-ring (point-marker)))))
+
+(defun helm-codesearch-next-line ()
+  "Move point to the next search result, if one exists."
+  (interactive)
+  (with-current-buffer (current-buffer)
+    (-when-let (pos (next-single-property-change
+                     (save-excursion (end-of-line) (point)) 'lineno))
+      (goto-char pos)
+      (beginning-of-line)
+      (helm-codesearch-show-source))))
+
+(defun helm-codesearch-previous-line ()
+  "Move point to the previous search result, if one exists."
+  (interactive)
+  (with-current-buffer (current-buffer)
+    (-when-let (pos (previous-single-property-change
+                     (save-excursion (beginning-of-line) (point)) 'lineno))
+      (goto-char pos)
+      (beginning-of-line)
+      (helm-codesearch-show-source))))
+
+(defun helm-codesearch-save-buffer (_candidate)
+  "Save buffer."
+  (let ((buf "*helm codesearch results*")
+        new-buf
+        (pattern (with-helm-buffer helm-input-local))
+        (src-name (assoc-default 'name (helm-get-current-source))))
+    (when (get-buffer buf)
+      (setq new-buf (helm-read-string "GrepBufferName: " buf))
+      (cl-loop for b in (helm-buffer-list)
+               when (and (string= new-buf b)
+                         (not (y-or-n-p
+                               (format "Buffer `%s' already exists overwrite? "
+                                       new-buf))))
+               do (setq new-buf (helm-read-string "GrepBufferName: " "*helm codesearch results ")))
+      (setq buf new-buf))
+    (with-current-buffer (get-buffer-create buf)
+      (setq default-directory (or helm-ff-default-directory
+                                  (helm-default-directory)
+                                  default-directory))
+      (setq buffer-read-only t)
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert "-*- mode: helm-codesearch -*-\n\n"
+                (format "%s Results for `%s':\n\n" src-name pattern))
+        (save-excursion
+          (insert (with-current-buffer helm-buffer
+                    (goto-char (point-min)) (forward-line 1)
+                    (buffer-substring (point) (point-max))))))
+      (local-set-key (kbd "RET") 'helm-codesearch-jump-to-source)
+      (local-set-key (kbd "n") 'helm-codesearch-next-line)
+      (local-set-key (kbd "p") 'helm-codesearch-previous-line)
+      (local-set-key (kbd "q") 'quit-window))
+    (pop-to-buffer buf)
+    (message "Helm %s Results saved in `%s' buffer" src-name buf)))
+
+(defun helm-codesearch-run-save-result (candidate)
+  "Run helm-codesearch save results with CANDIDATE."
+  (helm-codesearch-save-buffer candidate))
+
+(defun helm-codesearch-run-save-buffer ()
+  "Run helm-codesearch save results action."
+  (interactive)
+  (with-helm-alive-p
+    (helm-exit-and-execute-action 'helm-codesearch-run-save-result)))
+
+(defun helm-codesearch-handle-mouse (_event)
+  "Handle mouse click EVENT."
+  (interactive "e")
+  (helm-codesearch-jump-to-source))
+
+(defvar helm-codesearch-mouse-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'helm-codesearch-handle-mouse)
+    map))
+
 (defun helm-codesearch-make-pattern-format (candidate)
   "Make pattern format from CANDIDATE."
   (-when-let* (((_ file lineno source)
                 (s-match helm-codesearch-pattern-regexp candidate))
                (file (propertize file 'face 'helm-codesearch-file-face))
-               (lineno (propertize lineno 'face 'helm-codesearch-lineno-face))
+               (lineno (propertize lineno
+                                   'face 'helm-codesearch-lineno-face
+                                   'mouse-face 'highlight
+                                   'keymap helm-codesearch-mouse-map))
+               (lineno (propertize lineno 'lineno t))
                (source (propertize source 'face 'helm-codesearch-source-face))
                (display-line (format "%08s %s" lineno source))
                (abbrev-file (format "\n%s" (helm-codesearch-abbreviate-file file)))
@@ -204,7 +315,8 @@
      (lambda (process event)
        (helm-process-deferred-sentinel-hook
         process event (helm-default-directory))
-       (unless (member event '("finished\n" "killed\n"))
+       (unless (or (string= event "finished\n")
+                   (s-starts-with-p "killed" event))
          (with-helm-window
            (forward-line 1)
            (insert " No match found.")))))))
@@ -232,15 +344,24 @@
 
 (defun helm-codesearch-create-csearchindex-process (dir)
   "Execute the cindex from a DIR."
-  (let ((proc (apply 'start-process "codesearch"
-                     helm-codesearch-indexing-buffer
-                     "cindex" (list dir))))
-    (with-current-buffer helm-codesearch-indexing-buffer
+  (let* ((buf helm-codesearch-indexing-buffer)
+         (proc (apply 'start-process "codesearch"
+                      buf "cindex" (list dir))))
+    (set-process-filter proc
+                        (lambda (process output)
+                          (let ((buffer-read-only nil))
+                            (insert output))))
+    (set-process-sentinel proc
+                          (lambda (process event)
+                            (when (string= event "finished\n")
+                              (let ((buffer-read-only nil))
+                                (insert "\nIndexing finished")))))
+    (with-current-buffer buf
+      (local-set-key (kbd "q") 'quit-window)
       (let ((buffer-read-only nil))
         (erase-buffer))
-      (pop-to-buffer helm-codesearch-indexing-buffer)
       (setq buffer-read-only t)
-      (goto-char (point-max)))))
+      (pop-to-buffer buf))))
 
 (defun helm-codesearch-init ()
   "Initialize."
@@ -261,7 +382,7 @@
     (helm :sources 'helm-codesearch-source-pattern
           :buffer helm-codesearch-buffer
           :input symbol
-          :keymap helm-grep-map
+          :keymap helm-codesearch-map
           :prompt "Find pattern: "
           :truncate-lines t)))
 
