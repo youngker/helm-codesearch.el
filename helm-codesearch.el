@@ -3,7 +3,7 @@
 ;; Copyright (C) 2016 Youngjoo Lee
 
 ;; Author: Youngjoo Lee <youngker@gmail.com>
-;; Version: 0.3.0
+;; Version: 0.4.0
 ;; Keywords: tools
 ;; Package-Requires: ((s "1.10.0") (dash "2.12.0") (helm "1.7.7") (cl-lib "0.5"))
 
@@ -59,8 +59,8 @@
   :type 'string
   :group 'helm-codesearch)
 
-(defcustom helm-codesearch-multi-csearchindex nil
-  "Index file for multiple projects."
+(defcustom helm-codesearch-global-csearchindex nil
+  "The global csearchindex file."
   :type 'boolean
   :group 'helm-codesearch)
 
@@ -130,7 +130,7 @@
 (defun helm-codesearch-search-csearchindex ()
   "Search for project index file."
   (setenv "CSEARCHINDEX"
-          (expand-file-name (or helm-codesearch-multi-csearchindex
+          (expand-file-name (or helm-codesearch-global-csearchindex
                                 (helm-codesearch-search-single-csearchindex)))))
 
 (defun helm-codesearch-abbreviate-file (file)
@@ -229,7 +229,7 @@
       (let ((inhibit-read-only t))
         (erase-buffer)
         (insert "-*- mode: helm-codesearch -*-\n\n"
-                (format "%s Results for `%s':\n\n" src-name pattern))
+                (format "%s Results for `%s':\n" src-name pattern))
         (save-excursion
           (insert (with-current-buffer helm-buffer
                     (goto-char (point-min)) (forward-line 1)
@@ -349,13 +349,15 @@
                       buf "cindex" (list dir))))
     (set-process-filter proc
                         (lambda (process output)
-                          (let ((buffer-read-only nil))
-                            (insert output))))
+                          (with-current-buffer (process-buffer process)
+                            (let ((buffer-read-only nil))
+                              (insert output)))))
     (set-process-sentinel proc
                           (lambda (process event)
-                            (when (string= event "finished\n")
-                              (let ((buffer-read-only nil))
-                                (insert "\nIndexing finished")))))
+                            (with-current-buffer (process-buffer process)
+                              (when (string= event "finished\n")
+                                (let ((buffer-read-only nil))
+                                  (insert "\nIndexing finished"))))))
     (with-current-buffer buf
       (local-set-key (kbd "q") 'quit-window)
       (let ((buffer-read-only nil))
@@ -404,7 +406,7 @@
   "Create index file at DIR."
   (interactive "DIndex files in directory: ")
   (setenv "CSEARCHINDEX"
-          (expand-file-name (or helm-codesearch-multi-csearchindex
+          (expand-file-name (or helm-codesearch-global-csearchindex
                                 (concat dir helm-codesearch-csearchindex))))
   (helm-codesearch-create-csearchindex-process (expand-file-name dir)))
 
