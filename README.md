@@ -20,7 +20,7 @@ It's available on [Melpa](https://melpa.org/):
 
     M-x package-install helm-codesearch
 
-Requirements
+## Requirements
 
 - **Google codesearch**
 
@@ -38,8 +38,19 @@ You can add these lines to your init file.
 If you want to search for multiple projects, you need to set the csearchindex.
 
 ```elisp
-(setq helm-codesearch-multi-csearchindex "~/.csearchindex")
+(setq helm-codesearch-global-csearchindex "~/.csearchindex")
 ```
+
+## Key bindings
+
+helm-codesearch now supports saving search results to a new buffer.
+
+Key | Function
+--- | --------
+<kbd>RET</kbd> | helm-codesearch-jump-to-source
+<kbd>n</kbd> | helm-codesearch-next-line
+<kbd>p</kbd> | helm-codesearch-previous-line
+<kbd>q</kbd> | quit-window
 
 ## License
 
