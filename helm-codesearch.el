@@ -327,7 +327,7 @@
                      "codesearch"
                      nil
                      "csearch"
-                     (cons "-n" (split-string helm-pattern " " t)))))
+                     (list "-n" helm-pattern))))
     (setq helm-codesearch-file nil)
     (setq helm-codesearch-process proc)
     (helm-codesearch-set-process-sentinel proc)))
