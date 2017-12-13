@@ -33,6 +33,8 @@
 (require 'helm-grep)
 (require 'helm-files)
 (require 'cl-lib)
+(if (> emacs-major-version 24)
+    (require 'xref))
 
 (defgroup helm-codesearch nil
   "Helm interface for codesearch."
@@ -184,7 +186,9 @@
     (beginning-of-line)
     (-when-let (window (helm-codesearch-show-source))
       (select-window window)
-      (ring-insert find-tag-marker-ring (point-marker)))))
+      (if (> emacs-major-version 24)
+          (xref-push-marker-stack (point-marker))
+        (ring-insert find-tag-marker-ring (point-marker))))))
 
 (defun helm-codesearch-next-line ()
   "Move point to the next search result, if one exists."
@@ -366,15 +370,27 @@
       (setq buffer-read-only t)
       (pop-to-buffer buf))))
 
+(defvar helm-codesearch--marker nil
+  "Point to previous position.")
+
+(defun helm-codesearch-push-marker ()
+  "Push marker to previous position."
+  (interactive)
+  (if (> emacs-major-version 24)
+      (xref-push-marker-stack helm-codesearch--marker)
+    (ring-insert find-tag-marker-ring helm-codesearch--marker)))
+
 (defun helm-codesearch-init ()
   "Initialize."
   (advice-add 'helm-show-candidate-number :override
-              #'helm-codesearch-show-candidate-number))
+              #'helm-codesearch-show-candidate-number)
+  (setq helm-codesearch--marker (point-marker)))
 
 (defun helm-codesearch-cleanup ()
   "Cleanup Function."
   (advice-remove 'helm-show-candidate-number
-                 #'helm-codesearch-show-candidate-number))
+                 #'helm-codesearch-show-candidate-number)
+  (helm-codesearch-push-marker))
 
 ;;;###autoload
 (defun helm-codesearch-find-pattern ()
