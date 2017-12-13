@@ -338,7 +338,8 @@
                      "codesearch"
                      nil
                      "csearch"
-                     (list "-l" "-f" helm-pattern "$"))))
+                     (list "-l" "-f"
+                           (replace-regexp-in-string "\s" ".*" helm-pattern) "$"))))
     (setq helm-codesearch-process proc)
     (helm-codesearch-set-process-sentinel proc)))
 
