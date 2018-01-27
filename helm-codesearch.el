@@ -1,9 +1,9 @@
-;;; helm-codesearch.el --- helm interface for codesearch
+;;; helm-codesearch.el --- helm interface for codesearch -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2016 Youngjoo Lee
+;; Copyright (C) 2018 Youngjoo Lee
 
 ;; Author: Youngjoo Lee <youngker@gmail.com>
-;; Version: 0.4.0
+;; Version: 0.5.0
 ;; Keywords: tools
 ;; Package-Requires: ((s "1.10.0") (dash "2.12.0") (helm "1.7.7") (cl-lib "0.5"))
 
@@ -83,10 +83,25 @@
 (defvar helm-codesearch-file nil)
 (defvar helm-codesearch-process nil)
 
+(defun helm-codesearch-set-filename (_c)
+  (interactive)
+  (setq helm-codesearch--file-pattern (helm-read-string "File Pattern: "))
+  (helm-resume helm-codesearch-buffer)
+  (message "hello"))
+
+(defun helm-codesearch-dummy ()
+  (interactive)
+  (with-helm-alive-p
+    (helm-exit-and-execute-action 'helm-codesearch-set-filename)))
+
 (defvar helm-codesearch-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c o") 'helm-grep-run-other-window-action)
-    (define-key map (kbd "C-c C-o") 'helm-grep-run-other-frame-action)
+    (set-keymap-parent map helm-map)
+    (define-key map (kbd "C-c f") 'helm-codesearch-dummy)
+    (define-key map (kbd "C-c i") (lambda ()
+                                    (interactive)
+                                    (setq helm-codesearch-ignore-case
+                                          (not helm-codesearch-ignore-case))))
     (define-key map (kbd "C-x C-s") 'helm-codesearch-run-save-buffer)
     map))
 
@@ -95,8 +110,10 @@
     :header-name #'helm-codesearch-header-name
     :init #'helm-codesearch-init
     :cleanup #'helm-codesearch-cleanup
+    :resume #'helm-codesearch-resume
     :candidates-process #'helm-codesearch-find-pattern-process
     :filtered-candidate-transformer #'helm-codesearch-find-pattern-transformer
+    :keymap helm-codesearch-map
     :action 'helm-codesearch-action
     :persistent-action 'helm-grep-persistent-action
     :help-message 'helm-grep-help-message
@@ -304,7 +321,10 @@
   "Used to display candidate number in mode-line, not used NAME."
   (let ((source (cdr (assoc helm-codesearch-process helm-async-processes))))
     (propertize
-     (format "[%s Candidate(s)]" (or (cdr (assoc 'item-count source)) 0))
+     (format "[%s file: %s ignorecase: %s]" (or (cdr (assoc
+                                                      'item-count
+                                                      source)) 0)
+             helm-codesearch--file-pattern helm-codesearch-ignore-case)
      'face 'helm-candidate-number)))
 
 (defun helm-codesearch-set-process-sentinel (proc)
@@ -327,7 +347,10 @@
                      "codesearch"
                      nil
                      "csearch"
-                     (cons "-n" (split-string helm-pattern " " t)))))
+                     (if helm-codesearch--file-pattern
+                         (list "-n" "-f" (replace-regexp-in-string "\s" ".*" helm-codesearch--file-pattern)
+                               helm-pattern)
+                       (list "-i" "-n" helm-pattern)))))
     (setq helm-codesearch-file nil)
     (setq helm-codesearch-process proc)
     (helm-codesearch-set-process-sentinel proc)))
@@ -338,9 +361,16 @@
                      "codesearch"
                      nil
                      "csearch"
-                     (list "-l" "-f" helm-pattern "$"))))
+                     (if helm-codesearch-ignore-case
+                         (list "-i" "-l" "-f"
+                               (replace-regexp-in-string "\s" ".*" helm-pattern) "$")
+                       (list "-l" "-f"
+                             (replace-regexp-in-string "\s" ".*" helm-pattern) "$")))))
     (setq helm-codesearch-process proc)
     (helm-codesearch-set-process-sentinel proc)))
+
+(defvar helm-codesearch--file-pattern nil
+  "File pattern for searching in.")
 
 (defun helm-codesearch-create-csearchindex-process (dir)
   "Execute the cindex from a DIR."
@@ -374,6 +404,16 @@
   "Cleanup Function."
   (advice-remove 'helm-show-candidate-number
                  #'helm-codesearch-show-candidate-number))
+
+(defun helm-codesearch-resume ()
+  "Resume."
+  (advice-add 'helm-show-candidate-number :override
+              #'helm-codesearch-show-candidate-number)
+  (setq helm-codesearch--marker (point-marker))
+  (run-with-idle-timer 0.1 nil (lambda ()
+                                 (with-helm-buffer
+                                   (helm-force-update)
+                                   (sit-for 1)))))
 
 ;;;###autoload
 (defun helm-codesearch-find-pattern ()
