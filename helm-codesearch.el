@@ -100,7 +100,7 @@
   "Run Setting the filename."
   (interactive)
   (with-helm-alive-p
-   (helm-exit-and-execute-action 'helm-codesearch-set-filename)))
+    (helm-exit-and-execute-action 'helm-codesearch-set-filename)))
 (put 'helm-codesearch-run-set-filename 'helm-only t)
 
 (defun helm-codesearch-run-ignore-case ()
@@ -109,8 +109,8 @@
   (setq helm-codesearch-ignore-case (not helm-codesearch-ignore-case))
   (run-with-idle-timer 0.1 nil (lambda ()
                                  (with-helm-buffer
-                                  (helm-force-update)
-                                  (sit-for 1)))))
+                                   (helm-force-update)
+                                   (sit-for 1)))))
 
 (defvar helm-codesearch-map
   (let ((map (make-sparse-keymap)))
@@ -122,18 +122,18 @@
 
 (defvar helm-codesearch-source-pattern
   (helm-build-async-source "Codesearch: Find pattern"
-                           :header-name #'helm-codesearch-header-name
-                           :init #'helm-codesearch-init
-                           :cleanup #'helm-codesearch-cleanup
-                           :resume #'helm-codesearch-resume
-                           :candidates-process #'helm-codesearch-find-pattern-process
-                           :filtered-candidate-transformer #'helm-codesearch-find-pattern-transformer
-                           :keymap helm-codesearch-map
-                           :action 'helm-codesearch-action
-                           :persistent-action 'helm-grep-persistent-action
-                           :help-message 'helm-grep-help-message
-                           :candidate-number-limit 99999
-                           :requires-pattern 3))
+    :header-name #'helm-codesearch-header-name
+    :init #'helm-codesearch-init
+    :cleanup #'helm-codesearch-cleanup
+    :resume #'helm-codesearch-resume
+    :candidates-process #'helm-codesearch-find-pattern-process
+    :filtered-candidate-transformer #'helm-codesearch-find-pattern-transformer
+    :keymap helm-codesearch-map
+    :action 'helm-codesearch-action
+    :persistent-action 'helm-grep-persistent-action
+    :help-message 'helm-grep-help-message
+    :candidate-number-limit 99999
+    :requires-pattern 3))
 
 (defvar helm-codesearch-source-file
   (helm-build-async-source "Codesearch: Find file"
@@ -441,8 +441,8 @@
   (setq helm-codesearch--marker (point-marker))
   (run-with-idle-timer 0.1 nil (lambda ()
                                  (with-helm-buffer
-                                  (helm-force-update)
-                                  (sit-for 1)))))
+                                   (helm-force-update)
+                                   (sit-for 1)))))
 
 ;;;###autoload
 (defun helm-codesearch-find-pattern ()
