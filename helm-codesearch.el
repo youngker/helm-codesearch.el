@@ -304,7 +304,7 @@
                (lineno (propertize lineno
                                    'face 'helm-codesearch-lineno-face
                                    'mouse-face 'highlight
-                                   'keymap helm-codesearch-mouse-map))
+                                   'local-map helm-codesearch-mouse-map))
                (lineno (propertize lineno 'lineno t))
                (source (propertize source 'face 'helm-codesearch-source-face))
                (display-line (format "%08s %s" lineno source))
@@ -355,9 +355,7 @@
         process event (helm-default-directory))
        (unless (or (string= event "finished\n")
                    (s-starts-with-p "killed" event))
-         (with-helm-window
-           (forward-line 1)
-           (insert " No match found.")))))))
+         (message " No match found."))))))
 
 (defun helm-codesearch-find-pattern-process ()
   "Execute the csearch for a pattern."
