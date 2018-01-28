@@ -6,12 +6,10 @@ helm interface for codesearch
 
 - **find pattern**
 
-usage : `-i -f (?i)filename search.*pattern`
 <img align="center" src="https://raw.github.com/youngker/helm-codesearch.el/master/helm-codesearch-pattern.png">
 
 - **find file**
 
-case-sensitive : `(?i)filename`
 <img align="center" src="https://raw.github.com/youngker/helm-codesearch.el/master/helm-codesearch-file.png">
 
 ## Installation
@@ -43,6 +41,14 @@ If you want to search for multiple projects, you need to set the csearchindex.
 
 ## Key bindings
 
+Key | Function
+--- | --------
+<kbd>C-c f</kbd> | helm-codesearch-run-set-filename
+<kbd>C-c i</kbd> | helm-codesearch-run-ignore-case
+<kbd>C-c s</kbd> | helm-codesearch-run-save-buffer
+
+## Saved buffer Key bindings
+
 helm-codesearch now supports saving search results to a new buffer.
 
 Key | Function
@@ -54,7 +60,7 @@ Key | Function
 
 ## License
 
-Copyright (C) 2016 Youngjoo Lee
+Copyright (C) 2018 Youngjoo Lee
 
 Author: Youngjoo Lee <youngker@gmail.com>
 
