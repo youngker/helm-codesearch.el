@@ -1,11 +1,11 @@
 ;;; helm-codesearch.el --- helm interface for codesearch -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2018 Youngjoo Lee
+;; Copyright (C) 2019 Youngjoo Lee
 
 ;; Author: Youngjoo Lee <youngker@gmail.com>
 ;; Version: 0.5.0
 ;; Keywords: tools
-;; Package-Requires: ((s "1.10.0") (dash "2.12.0") (helm "1.7.7") (cl-lib "0.5"))
+;; Package-Requires: ((emacs "25") (s "1.10.0") (dash "2.12.0") (helm "1.7.7") (cl-lib "0.5"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -33,8 +33,7 @@
 (require 'helm-grep)
 (require 'helm-files)
 (require 'cl-lib)
-(if (> emacs-major-version 24)
-    (require 'xref))
+(require 'xref)
 
 (defgroup helm-codesearch nil
   "Helm interface for codesearch."
@@ -77,10 +76,11 @@
   :group 'helm-codesearch)
 
 (defcustom helm-codesearch-action
-  '(("Find File" . helm-grep-action)
+  '(("Find file" . helm-grep-action)
     ("Find file other frame" . helm-grep-other-frame)
-    ("Save results in grep buffer" . helm-codesearch-run-save-result)
-    ("Find file other window" . helm-grep-other-window))
+    ("Find file other window" . helm-grep-other-window)
+    ("Change filename filter" . helm-codesearch-set-filename)
+    ("Save results in other buffer" . helm-codesearch-run-save-result))
   "Actions for helm-codesearch."
   :group 'helm-codesearch
   :type '(alist :key-type string :value-type function))
@@ -89,6 +89,7 @@
 (defvar helm-codesearch-indexing-buffer "*helm codesearch indexing*")
 (defvar helm-codesearch-file nil)
 (defvar helm-codesearch-process nil)
+(defvar helm-codesearch--file-pattern nil)
 
 (defun helm-codesearch-set-filename (_candidate)
   "Setting the filename."
@@ -111,6 +112,17 @@
                                  (with-helm-buffer
                                    (helm-force-update)
                                    (sit-for 1)))))
+
+(defun helm-codesearch-run-save-result (candidate)
+  "Run helm-codesearch save results with CANDIDATE."
+  (helm-codesearch-save-buffer candidate))
+
+(defun helm-codesearch-run-save-buffer ()
+  "Run helm-codesearch save results action."
+  (interactive)
+  (with-helm-alive-p
+    (helm-exit-and-execute-action 'helm-codesearch-run-save-result)))
+(put 'helm-codesearch-run-save-buffer 'helm-only t)
 
 (defvar helm-codesearch-map
   (let ((map (make-sparse-keymap)))
@@ -217,9 +229,7 @@
     (beginning-of-line)
     (-when-let (window (helm-codesearch-show-source))
       (select-window window)
-      (if (> emacs-major-version 24)
-          (xref-push-marker-stack (point-marker))
-        (ring-insert find-tag-marker-ring (point-marker))))))
+      (xref-push-marker-stack (point-marker)))))
 
 (defun helm-codesearch-next-line ()
   "Move point to the next search result, if one exists."
@@ -276,17 +286,6 @@
     (pop-to-buffer buf)
     (message "Helm %s Results saved in `%s' buffer" src-name buf)))
 
-(defun helm-codesearch-run-save-result (candidate)
-  "Run helm-codesearch save results with CANDIDATE."
-  (helm-codesearch-save-buffer candidate))
-
-(defun helm-codesearch-run-save-buffer ()
-  "Run helm-codesearch save results action."
-  (interactive)
-  (with-helm-alive-p
-    (helm-exit-and-execute-action 'helm-codesearch-run-save-result)))
-(put 'helm-codesearch-run-save-buffer 'helm-only t)
-
 (defun helm-codesearch-handle-mouse (_event)
   "Handle mouse click EVENT."
   (interactive "e")
@@ -336,7 +335,7 @@
   "Transformer is run on the CANDIDATES and not use the SOURCE."
   (-mapcat 'helm-codesearch-make-file-format candidates))
 
-(defun helm-codesearch-show-candidate-number (&optional name)
+(defun helm-codesearch-show-candidate-number (&optional _name)
   "Used to display candidate number in mode-line, not used NAME."
   (let* ((source (cdr (assoc helm-codesearch-process helm-async-processes)))
          (match-num (cdr (assoc 'item-count source))))
@@ -374,9 +373,6 @@
                                         pattern) "$")))))
     (setq helm-codesearch-process proc)))
 
-(defvar helm-codesearch--file-pattern nil
-  "File pattern for searching in.")
-
 (defun helm-codesearch-create-csearchindex-process (dir)
   "Execute the cindex from a DIR."
   (let* ((buf helm-codesearch-indexing-buffer)
@@ -406,9 +402,7 @@
 (defun helm-codesearch-push-marker ()
   "Push marker to previous position."
   (interactive)
-  (if (> emacs-major-version 24)
-      (xref-push-marker-stack helm-codesearch--marker)
-    (ring-insert find-tag-marker-ring helm-codesearch--marker)))
+  (xref-push-marker-stack helm-codesearch--marker))
 
 (defun helm-codesearch-init ()
   "Initialize."
