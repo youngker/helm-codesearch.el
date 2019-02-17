@@ -5,7 +5,7 @@
 ;; Author: Youngjoo Lee <youngker@gmail.com>
 ;; Version: 0.5.0
 ;; Keywords: tools
-;; Package-Requires: ((emacs "25") (s "1.10.0") (dash "2.12.0") (helm "1.7.7") (cl-lib "0.5"))
+;; Package-Requires: ((emacs "25.1") (s "1.11.0") (dash "2.12.0") (helm "1.7.7") (cl-lib "0.5"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -145,6 +145,7 @@
     :persistent-action 'helm-grep-persistent-action
     :help-message 'helm-grep-help-message
     :candidate-number-limit 99999
+    :nohighlight t
     :requires-pattern 3))
 
 (defvar helm-codesearch-source-file
@@ -157,6 +158,7 @@
     :keymap helm-codesearch-map
     :action 'helm-type-file-actions
     :candidate-number-limit 99999
+    :nohighlight t
     :requires-pattern 3))
 
 (defun helm-codesearch-header-name (name)
@@ -205,51 +207,62 @@
 (defconst helm-codesearch-pattern-regexp
   "^\\([[:lower:][:upper:]]?:?.*?\\):\\([0-9]+\\):\\(.*\\)")
 
-(defun helm-codesearch-show-source ()
-  "Display source."
-  (save-excursion
-    (beginning-of-line)
-    (-when-let* ((realvalue (get-text-property (point) 'helm-realvalue))
-                 ((_ file lineno source)
-                  (s-match helm-codesearch-pattern-regexp realvalue))
-                 (buffer (find-file-noselect file))
-                 (window (display-buffer buffer)))
-      (set-buffer buffer)
-      (save-restriction
-        (widen)
-        (goto-char (point-min))
-        (forward-line (1- (string-to-number lineno))))
-      (set-window-point window (point))
-      window)))
+(defvar helm-codesearch-line-overlay nil)
+
+(defun helm-codesearch-highlight-current-line ()
+  "Make overlay in current line."
+  (let ((s (line-beginning-position))
+        (e (1+ (line-end-position))))
+    (if helm-codesearch-line-overlay
+        (move-overlay helm-codesearch-line-overlay s e (current-buffer))
+      (setq helm-codesearch-line-overlay (make-overlay s e)))
+    (overlay-put helm-codesearch-line-overlay 'face 'helm-selection-line)
+    (recenter)))
+
+(defun helm-codesearch-open-file ()
+  "Open with `find-file-other-window'."
+  (-when-let ((_ file lineno source)
+              (s-match helm-codesearch-pattern-regexp
+                       (get-text-property (point) 'helm-realvalue)))
+    (find-file-other-window file)
+    (goto-char (point-min))
+    (forward-line (1- (string-to-number lineno)))
+    (helm-codesearch-highlight-current-line)))
 
 (defun helm-codesearch-jump-to-source ()
   "Jump point to the other window."
   (interactive)
-  (save-excursion
-    (beginning-of-line)
-    (-when-let (window (helm-codesearch-show-source))
-      (select-window window)
-      (xref-push-marker-stack (point-marker)))))
+  (helm-codesearch-open-file)
+  (delete-overlay helm-codesearch-line-overlay)
+  (xref-push-marker-stack (point-marker)))
+
+(defun helm-codesearch-move-line (pfn lfn)
+  "Move point with PFN and LFN."
+  (with-current-buffer (current-buffer)
+    (-when-let (pos (funcall pfn (save-excursion
+                                   (funcall lfn) (point)) 'lineno))
+      (goto-char pos)
+      (beginning-of-line)
+      (save-selected-window
+        (helm-codesearch-open-file)))))
 
 (defun helm-codesearch-next-line ()
   "Move point to the next search result, if one exists."
   (interactive)
-  (with-current-buffer (current-buffer)
-    (-when-let (pos (next-single-property-change
-                     (save-excursion (end-of-line) (point)) 'lineno))
-      (goto-char pos)
-      (beginning-of-line)
-      (helm-codesearch-show-source))))
+  (helm-codesearch-move-line #'next-single-property-change
+                             #'end-of-line))
 
 (defun helm-codesearch-previous-line ()
   "Move point to the previous search result, if one exists."
   (interactive)
-  (with-current-buffer (current-buffer)
-    (-when-let (pos (previous-single-property-change
-                     (save-excursion (beginning-of-line) (point)) 'lineno))
-      (goto-char pos)
-      (beginning-of-line)
-      (helm-codesearch-show-source))))
+  (helm-codesearch-move-line #'previous-single-property-change
+                             #'beginning-of-line))
+
+(defun helm-codesearch-quit-window ()
+  "Quit helm-codesearch window."
+  (interactive)
+  (delete-overlay helm-codesearch-line-overlay)
+  (quit-window))
 
 (defun helm-codesearch-save-buffer (_candidate)
   "Save buffer."
@@ -282,7 +295,7 @@
       (local-set-key (kbd "RET") 'helm-codesearch-jump-to-source)
       (local-set-key (kbd "n") 'helm-codesearch-next-line)
       (local-set-key (kbd "p") 'helm-codesearch-previous-line)
-      (local-set-key (kbd "q") 'quit-window))
+      (local-set-key (kbd "q") 'helm-codesearch-quit-window))
     (pop-to-buffer buf)
     (message "Helm %s Results saved in `%s' buffer" src-name buf)))
 
@@ -302,11 +315,12 @@
                 (s-match helm-codesearch-pattern-regexp candidate))
                (file (propertize file 'face 'helm-codesearch-file-face))
                (lineno (propertize lineno
+                                   'lineno t
                                    'face 'helm-codesearch-lineno-face
                                    'mouse-face 'highlight
                                    'local-map helm-codesearch-mouse-map))
-               (lineno (propertize lineno 'lineno t))
-               (source (propertize source 'face 'helm-codesearch-source-face))
+               (source (helm-grep-highlight-match
+                        (propertize source 'face 'helm-codesearch-source-face) t))
                (display-line (format "%08s %s" lineno source))
                (abbrev-file (format "\n%s" (helm-codesearch-abbreviate-file file)))
                (fake-file (propertize abbrev-file 'helm-candidate-separator t)))

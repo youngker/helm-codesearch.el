@@ -56,7 +56,7 @@ Key | Function
 <kbd>RET</kbd> | helm-codesearch-jump-to-source
 <kbd>n</kbd> | helm-codesearch-next-line
 <kbd>p</kbd> | helm-codesearch-previous-line
-<kbd>q</kbd> | quit-window
+<kbd>q</kbd> | helm-codesearch-quit-window
 
 ## License
 
