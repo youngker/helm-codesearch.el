@@ -368,11 +368,33 @@
                       "codesearch"
                       nil
                       "csearch"
-                      (delq nil (list (and helm-codesearch-ignore-case "-i")
-                                      "-f" (or helm-codesearch--file-pattern "")
-                                      "-n" pattern)))))
+		      (helm-codesearch-build-find-pattern-param helm-pattern))))
     (setq helm-codesearch-file nil)
     (setq helm-codesearch-process proc)))
+
+(defun helm-codesearch-build-find-pattern-param (text-pattern)
+  "Build search pattern from flags and the command input. File scope from the command
+   takes precedence over the one from 'helm-codesearch--file-pattern' which is included
+   only when the user doesn't specifiy the file scope with -f."
+  (let ((has-only-text-pattern (helm-codesearch-has-only-text-pattern text-pattern)))
+    (delq nil (append
+	        (list (and helm-codesearch-ignore-case "-i")
+	              (and has-only-text-pattern "-f")
+	              (and has-only-text-pattern (or helm-codesearch--file-pattern "")))
+	        (cons "-n" (helm-codesearch-maybe-split-search-pattern text-pattern))))))
+
+(defun helm-codesearch-has-only-text-pattern (pattern)
+  "Return true if pattern contains one for text to search only, without file scope."
+  (not (and (string= (car (split-string pattern)) "-f"))))
+
+(defun helm-codesearch-maybe-split-search-pattern (text-pattern)
+  "Split pattern into one for file scope(if present), the other for text pattern.
+   '-f java import android' -> '('-f' 'java' 'import android')
+   'import android' -> '('import android')"
+  (let ((tokens (split-string text-pattern)))
+    (if (string= (car tokens) "-f")
+      (list "-f" (nth 1 tokens) (combine-and-quote-strings (nthcdr 2 tokens) " "))
+      (list (combine-and-quote-strings tokens " ")))))
 
 (defun helm-codesearch-find-file-process ()
   "Execute the csearch for a file."
