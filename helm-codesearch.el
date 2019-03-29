@@ -393,8 +393,8 @@ specifiy the file scope with -f."
 'import android' -> '('import android')"
   (let ((tokens (split-string text-pattern)))
     (if (string= (car tokens) "-f")
-        (list "-f" (nth 1 tokens) (mapconcat 'identity (nthcdr 2 tokens) " "))
-      (list (mapconcat 'identity tokens " ")))))
+        (list "-f" (nth 1 tokens) (combine-and-quote-strings (nthcdr 2 tokens) ".*"))
+      (list (combine-and-quote-strings tokens ".*")))))
 
 (defun helm-codesearch-find-file-process ()
   "Execute the csearch for a file."
