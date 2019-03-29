@@ -361,13 +361,29 @@
              (or helm-codesearch--file-pattern ""))
      'face 'helm-candidate-number)))
 
+;; from helm-ag
+(defun helm-codesearch-elisp-regexp-to-pcre (regexp)
+  "Change elisp REGEXP to pcre."
+  (with-temp-buffer
+    (insert regexp)
+    (goto-char (point-min))
+    (while (re-search-forward "[(){}|]" nil t)
+      (backward-char 1)
+      (cond ((looking-back "\\\\\\\\" nil))
+            ((looking-back "\\\\" nil)
+             (delete-char -1))
+            (t
+             (insert "\\")))
+      (forward-char 1))
+    (buffer-string)))
+
 (defun helm-codesearch-find-pattern-process ()
   "Execute the csearch for a pattern."
   (let ((proc (apply 'start-process
                      "codesearch"
                      nil
                      "csearch"
-		     (helm-codesearch-build-find-pattern-param helm-pattern))))
+                     (helm-codesearch-build-find-pattern-param helm-pattern))))
     (setq helm-codesearch-file nil)
     (setq helm-codesearch-process proc)))
 
@@ -379,9 +395,9 @@ specifiy the file scope with -f."
   (let ((has-only-text-pattern (helm-codesearch-has-only-text-pattern text-pattern)))
     (delq nil (append
                (list (and helm-codesearch-ignore-case "-i")
-	             (and has-only-text-pattern "-f")
-	             (and has-only-text-pattern (or helm-codesearch--file-pattern "")))
-	       (cons "-n" (helm-codesearch-maybe-split-search-pattern text-pattern))))))
+                     (and has-only-text-pattern "-f")
+                     (and has-only-text-pattern (or helm-codesearch--file-pattern "")))
+               (cons "-n" (helm-codesearch-maybe-split-search-pattern text-pattern))))))
 
 (defun helm-codesearch-has-only-text-pattern (pattern)
   "Return non-nil if PATTERN contain one for text to search only, without file scope."
@@ -393,8 +409,9 @@ specifiy the file scope with -f."
 'import android' -> '('import android')"
   (let ((tokens (split-string text-pattern)))
     (if (string= (car tokens) "-f")
-        (list "-f" (nth 1 tokens) (combine-and-quote-strings (nthcdr 2 tokens) ".*"))
-      (list (combine-and-quote-strings tokens ".*")))))
+        (list "-f" (nth 1 tokens) (helm-codesearch-elisp-regexp-to-pcre
+                                   (s-join ".*" (nthcdr 2 tokens))))
+      (list (helm-codesearch-elisp-regexp-to-pcre (s-join ".*" tokens))))))
 
 (defun helm-codesearch-find-file-process ()
   "Execute the csearch for a file."
