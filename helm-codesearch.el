@@ -85,6 +85,11 @@
   :group 'helm-codesearch
   :type '(alist :key-type string :value-type function))
 
+(defcustom helm-codesearch-overwrite-search-result nil
+  "Overwrite search result buffer without asking confirmation."
+  :type 'boolean
+  :group 'helm-codesearch)
+
 (defvar helm-codesearch-buffer "*helm codesearch*")
 (defvar helm-codesearch-indexing-buffer "*helm codesearch indexing*")
 (defvar helm-codesearch-file nil)
@@ -270,7 +275,8 @@
         new-buf
         (pattern (with-helm-buffer helm-input-local))
         (src-name (assoc-default 'name (helm-get-current-source))))
-    (when (get-buffer buf)
+    (when (and (get-buffer buf)
+               (not helm-codesearch-overwrite-search-result))
       (setq new-buf (helm-read-string "GrepBufferName: " buf))
       (cl-loop for b in (helm-buffer-list)
                when (and (string= new-buf b)
