@@ -133,6 +133,7 @@
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map helm-map)
     (define-key map (kbd "C-c f") 'helm-codesearch-run-set-filename)
+    (define-key map (kbd "C-c h") 'helm-minibuffer-history)
     (define-key map (kbd "C-c i") 'helm-codesearch-run-ignore-case)
     (define-key map (kbd "C-c s") 'helm-codesearch-run-save-buffer)
     map))
@@ -489,7 +490,7 @@ specifiy the file scope with -f."
 (defun helm-codesearch-find-pattern ()
   "Find pattern."
   (interactive)
-  (let ((symbol (thing-at-point 'symbol)))
+  (let ((symbol (substring-no-properties (or (thing-at-point 'symbol) ""))))
     (helm-codesearch-search-csearchindex)
     (helm :sources 'helm-codesearch-source-pattern
           :buffer helm-codesearch-buffer
@@ -503,7 +504,7 @@ specifiy the file scope with -f."
 (defun helm-codesearch-find-file ()
   "Find file."
   (interactive)
-  (let ((symbol (thing-at-point 'symbol)))
+  (let ((symbol (substring-no-properties (or (thing-at-point 'symbol) ""))))
     (helm-codesearch-search-csearchindex)
     (helm :sources 'helm-codesearch-source-file
           :buffer helm-codesearch-buffer

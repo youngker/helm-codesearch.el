@@ -38,12 +38,18 @@ If you want to search for multiple projects, you need to set the csearchindex.
 ```elisp
 (setq helm-codesearch-global-csearchindex "~/.csearchindex")
 ```
+Overwrite search result buffer without asking confirmation.
+
+```elisp
+(setq helm-codesearch-overwrite-search-result t)
+```
 
 ## Key bindings
 
 Key | Function
 --- | --------
 <kbd>C-c f</kbd> | helm-codesearch-run-set-filename
+<kbd>C-c h</kbd> | helm-minibuffer-history
 <kbd>C-c i</kbd> | helm-codesearch-run-ignore-case
 <kbd>C-c s</kbd> | helm-codesearch-run-save-buffer
 
