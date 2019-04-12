@@ -464,22 +464,29 @@ specifiy the file scope with -f."
   (interactive)
   (xref-push-marker-stack helm-codesearch--marker))
 
+(defun helm-codesearch-update-keymap ()
+  "Handle different keymap."
+  (helm--maybe-update-keymap helm-codesearch-map))
+
 (defun helm-codesearch-init ()
   "Initialize."
   (advice-add 'helm-show-candidate-number :override
               #'helm-codesearch-show-candidate-number)
+  (add-hook 'post-command-hook 'helm-codesearch-update-keymap)
   (setq helm-codesearch--marker (point-marker)))
 
 (defun helm-codesearch-cleanup ()
   "Cleanup Function."
   (advice-remove 'helm-show-candidate-number
                  #'helm-codesearch-show-candidate-number)
+  (remove-hook 'post-command-hook 'helm-codesearch-update-keymap)
   (helm-codesearch-push-marker))
 
 (defun helm-codesearch-resume ()
   "Resume."
   (advice-add 'helm-show-candidate-number :override
               #'helm-codesearch-show-candidate-number)
+  (add-hook 'post-command-hook 'helm-codesearch-update-keymap)
   (setq helm-codesearch--marker (point-marker))
   (run-with-idle-timer 0.1 nil (lambda ()
                                  (with-helm-buffer
