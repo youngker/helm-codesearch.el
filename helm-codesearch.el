@@ -1,9 +1,9 @@
 ;;; helm-codesearch.el --- helm interface for codesearch -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2019 Youngjoo Lee
+;; Copyright (C) 2022 Youngjoo Lee
 
 ;; Author: Youngjoo Lee <youngker@gmail.com>
-;; Version: 0.5.0
+;; Version: 0.6.0
 ;; Keywords: tools
 ;; Package-Requires: ((emacs "25.1") (s "1.11.0") (dash "2.12.0") (helm "1.7.7") (cl-lib "0.5"))
 
@@ -327,7 +327,7 @@
                                    'mouse-face 'highlight
                                    'local-map helm-codesearch-mouse-map))
                (source (helm-grep-highlight-match
-                        (propertize source 'face 'helm-codesearch-source-face) t))
+                        (propertize source 'face 'helm-codesearch-source-face) nil))
                (display-line (format "%08s %s" lineno source))
                (abbrev-file (format "\n%s" (helm-codesearch-abbreviate-file file)))
                (fake-file (propertize abbrev-file 'helm-candidate-separator t)))
